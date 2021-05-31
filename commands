@@ -1,0 +1,109 @@
+#
+# 1. Определить алгоритм с наилучшим сжатием
+#
+
+[root@server ~]# lsblk
+NAME   MAJ:MIN RM SIZE RO TYPE MOUNTPOINT
+sda      8:0    0  10G  0 disk
+└─sda1   8:1    0  10G  0 part /
+sdb      8:16   0   1G  0 disk
+sdc      8:32   0   1G  0 disk
+sdd      8:48   0   1G  0 disk
+sde      8:64   0   1G  0 disk
+sdf      8:80   0   1G  0 disk
+sdg      8:96   0   1G  0 disk
+[root@server ~]# zpool create otus /dev/sd[b-g]
+[root@server ~]# zpool list
+NAME   SIZE  ALLOC   FREE  CKPOINT  EXPANDSZ   FRAG    CAP  DEDUP    HEALTH  ALTROOT
+otus  5.62G    96K  5.62G        -         -     0%     0%  1.00x    ONLINE  -
+[root@server ~]# zfs create otus/gzip
+[root@server ~]# zfs create otus/zle
+[root@server ~]# zfs create otus/lzjb
+[root@server ~]# zfs create otus/lz4
+[root@server ~]# zfs list
+NAME          USED  AVAIL     REFER  MOUNTPOINT
+otus          252K  1.75G     28.5K  /otus
+otus/gzip      24K  1.75G       24K  /otus/gzip
+otus/lz4       24K  1.75G       24K  /otus/lz4
+otus/lzjb      24K  1.75G       24K  /otus/lzjb
+otus/zle       24K  1.75G       24K  /otus/zle
+[root@server ~]# zfs set compression=gzip-9 otus/gzip
+[root@server ~]# zfs set compression=lz4 otus/lz4
+[root@server ~]# zfs set compression=lzjb otus/lzjb
+[root@server ~]# zfs set compression=zle otus/zle
+[root@server ~]# zfs get compression
+NAME       PROPERTY     VALUE     SOURCE
+otus       compression  off       default
+otus/gzip  compression  gzip-9    local
+otus/lz4   compression  lz4       local
+otus/lzjb  compression  lzjb      local
+otus/zle   compression  zle       local
+[root@server ~]# wget https://git.kernel.org/torvalds/t/linux-5.13-rc4.tar.gz
+[root@server ~]# tar -xvzf linux-5.13-rc4.tar.gz
+[root@server ~]# for i in `ls /otus`; do cp -r linux-5.13-rc4 /otus/$i/; done
+[vagrant@server ~]$ zfs get compressratio
+NAME       PROPERTY       VALUE  SOURCE
+otus       compressratio  2.11x  -
+otus/gzip  compressratio  4.52x  -
+otus/lz4   compressratio  2.89x  -
+otus/lzjb  compressratio  2.51x  -
+otus/zle   compressratio  1.08x  -
+[root@server ~]# for i in `ls /otus`; do du -sh /otus/$i/linux-5.13-rc4; done
+270M	/otus/gzip/linux-5.13-rc4
+408M	/otus/lz4/linux-5.13-rc4
+465M	/otus/lzjb/linux-5.13-rc4
+1.1G	/otus/zle/linux-5.13-rc4
+
+#
+# 2. Определить настройки pool’a
+#
+
+[root@server ~]# zfs destroy -r otus
+[root@server ~]# zpool destroy otus
+[root@server ~]# wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1KRBNW33QWqbvbVHa3hLJivOAt60yukkg' -O zfs_task1.tar.gz
+[root@server ~]# tar -xvzf zfs_task1.tar.gz
+[root@server ~]# cd zpoolexport/
+[root@server ~]# zpool import -d filea -d fileb
+   pool: otus
+     id: 6554193320433390805
+  state: ONLINE
+ action: The pool can be imported using its name or numeric identifier.
+ config:
+
+	otus                         ONLINE
+	  mirror-0                   ONLINE
+	    /root/zpoolexport/filea  ONLINE
+	    /root/zpoolexport/fileb  ONLINE
+[root@server zpoolexport]# zpool get size
+NAME  PROPERTY  VALUE  SOURCE
+otus  size      480M   -
+[root@server ~]# zfs get type
+NAME            PROPERTY  VALUE       SOURCE
+otus            type      filesystem  -
+otus/hometask2  type      filesystem  -
+[root@server ~]# zfs get recordsize
+NAME            PROPERTY    VALUE    SOURCE
+otus            recordsize  128K     local
+otus/hometask2  recordsize  128K     inherited from otus
+[root@server ~]# zfs get compression
+NAME            PROPERTY     VALUE     SOURCE
+otus            compression  zle       local
+otus/hometask2  compression  zle       inherited from otus
+[root@server ~]# zfs get checksum
+NAME            PROPERTY  VALUE      SOURCE
+otus            checksum  sha256     local
+otus/hometask2  checksum  sha256     inherited from otus
+
+#
+# 3. Найти сообщение от преподавателей
+#
+
+[root@server ~]# zfs receive otus/storage@task2 < otus_task2.file
+[root@server ~]# zfs list
+NAME           USED  AVAIL     REFER  MOUNTPOINT
+otus          3.88M  1.75G     25.5K  /otus
+otus/storage  3.69M  1.75G     3.69M  /otus/storage
+[root@server ~]# find /otus/ -name 'secret_message'
+/otus/storage/task1/file_mess/secret_message
+[root@server ~]# cat /otus/storage/task1/file_mess/secret_message
+https://github.com/sindresorhus/awesome
